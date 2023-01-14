@@ -1,0 +1,20 @@
+{
+  "name": "koishi-plugin-bilibili",
+  "version": "1.0.0",
+  "description": "bilibili plugin for koishi",
+  "main": "lib/index.js",
+  "repository": "https://github.com/Anillc/koishi-plugin-bilibili.git",
+  "author": "Anillc <void@anillc.cn>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "koishi": "^4.11.0",
+    "koishi-plugin-puppeteer": "^3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.18",
+    "typescript": "^4.9.4"
+  }
+}
