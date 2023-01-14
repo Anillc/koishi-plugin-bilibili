@@ -1,7 +1,6 @@
 import { Argv, Context, Channel, Dict, Quester, Schema, segment, Logger } from 'koishi'
 import { } from 'koishi-plugin-puppeteer'
 import { Page } from 'puppeteer-core'
-import { LivePlayInfo } from './live'
 
 declare module '.' {
   interface BilibiliChannel {
@@ -100,6 +99,12 @@ type BilibiliDynamicItem = {
       }
     }
   }
+}
+
+export interface LivePlayInfo {
+  title: string
+  cover: string
+  link: string
 }
 
 export interface Config {
@@ -237,7 +242,6 @@ function checkDynamic({ session }: Argv<never, 'bilibili'>) {
 async function request(uid: string, http: Quester): Promise<BilibiliDynamicItem[]> {
   const res = await http.get('https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=' + uid, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
       'Referer': `https://space.bilibili.com/${uid}/dynamic`,
     },
   })
