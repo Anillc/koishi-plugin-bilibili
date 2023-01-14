@@ -1,6 +1,7 @@
 import { Argv, Context, Channel, Dict, Quester, Schema, segment, Logger } from 'koishi'
 import { } from 'koishi-plugin-puppeteer'
 import { Page } from 'puppeteer-core'
+import { LivePlayInfo } from './live'
 
 declare module '.' {
   interface BilibiliChannel {
@@ -83,16 +84,34 @@ type BilibiliDynamicItem = {
       }
     }
   }
+} | {
+  type: 'DYNAMIC_TYPE_LIVE_RCMD'
+  id_str: string
+  modules: {
+    module_author: {
+      name: string
+      pub_ts: number
+    }
+    module_dynamic: {
+      major: {
+        live_rcmd: {
+          content: string
+        }
+      }
+    }
+  }
 }
 
 export interface Config {
   interval: number
   image: boolean
+  live: boolean
 }
 
 export const Config: Schema<Config> = Schema.object({
   interval: Schema.number().description('请求之间的间隔 (秒)。').default(10),
-  image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true)
+  image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
+  live: Schema.boolean().description('是否监控开始直播的动态').default(true),
 })
 
 export const logger = new Logger('bilibili/dynamic')
@@ -106,7 +125,7 @@ export async function apply(ctx: Context, config: Config) {
     return acc
   }, {} as Dict<[Pick<Channel, 'id' | 'guildId' | 'platform' | 'bilibili'>, DynamicNotifiction][]>)
 
-  ctx.command('dynamic.add <uid:string>', '添加对 B 站用户的动态的监听', { checkArgCount: true, authority: 2 })
+  ctx.guild().command('bilibili/dynamic.add <uid:string>', '添加对 B 站用户的动态的监听', { checkArgCount: true, authority: 2 })
     .channelFields(['id', 'guildId', 'platform', 'bilibili'])
     .before(checkDynamic)
     .action(async ({ session }, uid) => {
@@ -133,7 +152,7 @@ export async function apply(ctx: Context, config: Config) {
       return '添加成功。'
     })
 
-  ctx.command('dynamic.remove <uid:string>', '删除对 B 站用户的动态监听', { checkArgCount: true, authority: 2})
+  ctx.guild().command('bilibili/dynamic.remove <uid:string>', '删除对 B 站用户的动态监听', { checkArgCount: true, authority: 2 })
     .channelFields(['id', 'guildId', 'platform', 'bilibili'])
     .before(checkDynamic)
     .action(({ session }, uid) => {
@@ -154,7 +173,7 @@ export async function apply(ctx: Context, config: Config) {
       return '删除成功。'
     })
 
-  ctx.command('dynamic.list', '列出当前监听 B 站用户列表', { authority: 2 })
+  ctx.guild().command('bilibili/dynamic.list', '列出当前监听 B 站用户列表', { authority: 2 })
     .channelFields(['bilibili'])
     .before(checkDynamic)
     .action(({ session }) => {
@@ -181,7 +200,8 @@ export async function apply(ctx: Context, config: Config) {
               notification.lastUpdated = items[0]?.modules.module_author.pub_ts || Math.ceil(+new Date() / 1000))
             continue
           }
-          const neo = items.filter(item => item.modules.module_author.pub_ts > time)
+          let neo = items.filter(item => item.modules.module_author.pub_ts > time)
+          if (!config.live) neo = neo.filter(item => item.type !== 'DYNAMIC_TYPE_LIVE_RCMD')
           if (neo.length !== 0) {
             let rendered: string[]
             if (ctx.puppeteer && config.image) {
@@ -189,9 +209,9 @@ export async function apply(ctx: Context, config: Config) {
             } else {
               rendered = neo.map(renderText)
             }
-            rendered.forEach(text => {
+            rendered.forEach((text, index) => {
               notifications.forEach(([channel, notification]) => {
-                notification.lastUpdated = neo[0].modules.module_author.pub_ts
+                notification.lastUpdated = neo[index].modules.module_author.pub_ts
                 ctx.bots[notification.botId].sendMessage(channel.id, text, channel.guildId)
               })
             })
@@ -240,7 +260,9 @@ async function renderImage(ctx: Context, item: BilibiliDynamicItem): Promise<str
       while (popover = document.querySelector('.van-popover')) popover.remove()
     })
     const element = await page.$('.bili-dyn-item')
-    return `${item.modules.module_author.name} 发布了动态:\n` + segment.image(await element.screenshot())
+    return `${item.modules.module_author.name} 发布了动态:\n`
+      + segment.image(await element.screenshot())
+      + `\nhttps://t.bilibili.com/${item.id_str}`
   } catch (e) {
     throw e
   } finally {
@@ -250,20 +272,27 @@ async function renderImage(ctx: Context, item: BilibiliDynamicItem): Promise<str
 
 function renderText(item: BilibiliDynamicItem): string {
   const author = item.modules.module_author
+  let result: string
   if (item.type === 'DYNAMIC_TYPE_AV') {
     const dynamic = item.modules.module_dynamic
-    return `${author.name} 发布了视频: ${dynamic.major.archive.title}\n<image url="${dynamic.major.archive.cover}"/>`
+    result = `${author.name} 发布了视频: ${dynamic.major.archive.title}\n<image url="${dynamic.major.archive.cover}"/>`
   } else if (item.type === 'DYNAMIC_TYPE_DRAW') {
     const dynamic = item.modules.module_dynamic
-    return `${author.name} 发布了动态: ${dynamic.desc.text}\n${dynamic.major.draw.items.map(item =>
+    result = `${author.name} 发布了动态: ${dynamic.desc.text}\n${dynamic.major.draw.items.map(item =>
       `<image url="${item.src}"/>`).join('')}`
   } else if (item.type === 'DYNAMIC_TYPE_WORD') {
     const dynamic = item.modules.module_dynamic
-    return `${author.name} 发布了动态: ${dynamic.desc.text}`
+    result = `${author.name} 发布了动态: ${dynamic.desc.text}`
   } else if (item.type === 'DYNAMIC_TYPE_FORWARD') {
     const dynamic = item.modules.module_dynamic
-    return `${author.name} 转发动态: ${dynamic.desc.text}\n${renderText(item.orig)}`
+    result = `${author.name} 转发动态: ${dynamic.desc.text}\n${renderText(item.orig)}`
+  } else if (item.type === 'DYNAMIC_TYPE_LIVE_RCMD') {
+    const dynamic = item.modules.module_dynamic
+    const info: LivePlayInfo = JSON.parse(dynamic.major.live_rcmd.content)
+    result = `${author.name} 开始直播: ${info.title}`
+    if (info.cover) result += `\n${segment.image(info.cover)}`
   } else {
-    return `${author.name} 发布了未知类型的动态: ${item['type']}`
+    result = `${author.name} 发布了未知类型的动态: ${item['type']}`
   }
+  return result + `\nhttps://t.bilibili.com/${item.id_str}`
 }
