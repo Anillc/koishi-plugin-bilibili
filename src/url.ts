@@ -6,9 +6,13 @@ const VIDEO_REGEX = /(((https?:\/\/)?(www.|m.)?bilibili.com\/(video\/)?)?((av|AV
 // value -> 4
 const B23_REGEX = /((https?:\/\/)?(b23.tv|bili2233.cn)\/(((av|ep|ss)\d+)|BV1[1-9A-NP-Za-km-z]{9}|\S{6,7}))/
 
-export interface Config {}
+export interface Config {
+  lengthLimit: number
+}
 
-export const Config: Schema<Config> = Schema.object({})
+export const Config: Schema<Config> = Schema.object({
+  lengthLimit: Schema.number().description('简介的最大长度，设置为 0 则不限制。').default(100),
+})
 
 const logger = new Logger('bilibili/url')
 
@@ -17,7 +21,7 @@ export function apply(ctx: Context, config: Config) {
     try {
       const avid = await testVideo(content, ctx.http)
       if (avid) return next(async () => {
-        return await render(avid, ctx.http)
+        return await render(avid, ctx.http, config.lengthLimit)
       })
     } catch (e) {
       logger.error('请求时发生异常: ', e)
@@ -44,14 +48,18 @@ async function parseB23(value: string, http: Quester): Promise<string> {
   return result.headers['location']
 }
 
-async function render(avid: string, http: Quester) {
+async function render(avid: string, http: Quester, lengthLimit: number) {
   const { data } = await http.get(`https://api.bilibili.com/x/web-interface/view?aid=${avid}`)
   const up = data.staff?.map(staff => staff.name).join('/') || data.owner.name
+  let desc: string = data.desc
+  if (lengthLimit !== 0 && desc.length > lengthLimit) {
+    desc = desc.substring(0, lengthLimit) + '...'
+  }
   return `<image url="${data.pic}"/>
 标题: ${data.title}
 UP 主: ${up}
 点赞: ${data.stat.like} | 硬币: ${data.stat.coin} | 收藏: ${data.stat.favorite}
 播放: ${data.stat.view} | 弹幕: ${data.stat.danmaku} | 评论: ${data.stat.reply}
-简介: ${data.desc}
+简介: ${desc}
 https://bilibili.com/video/av${avid}`
 }
