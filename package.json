@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-bilibili",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "bilibili plugin for koishi",
   "main": "lib/index.js",
   "repository": "https://github.com/Anillc/koishi-plugin-bilibili.git",
