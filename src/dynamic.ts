@@ -292,7 +292,7 @@ function renderText(item: BilibiliDynamicItem): string {
     result = `${author.name} 转发动态: ${dynamic.desc.text}\n${renderText(item.orig)}`
   } else if (item.type === 'DYNAMIC_TYPE_LIVE_RCMD') {
     const dynamic = item.modules.module_dynamic
-    const info: LivePlayInfo = JSON.parse(dynamic.major.live_rcmd.content)
+    const info: LivePlayInfo = JSON.parse(dynamic.major.live_rcmd.content).live_play_info
     result = `${author.name} 开始直播: ${info.title}`
     if (info.cover) result += `\n${segment.image(info.cover)}`
   } else {
