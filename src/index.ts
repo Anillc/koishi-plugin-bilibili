@@ -10,17 +10,8 @@ declare module 'koishi' {
     }
 }
 
-interface EnableConfig {
-  enable: boolean
-}
-
-interface Config {
-  dynamic: dynamic.Config & EnableConfig
-  url: url.Config & EnableConfig
-  quester: Quester.Config
-}
-
-const enable = <T>(schema: Schema<T>): Schema<T & EnableConfig> => Schema.intersect([
+type Enable<T> = { enable: true } & T | { enable?: false }
+const enable = <T>(schema: Schema<T>): Schema<Enable<T>> => Schema.intersect([
   Schema.object({ enable: Schema.boolean().default(false).description('是否开启功能。') }),
   Schema.union([
     Schema.object({
@@ -28,8 +19,14 @@ const enable = <T>(schema: Schema<T>): Schema<T & EnableConfig> => Schema.inters
       ...schema.dict,
     }),
     Schema.object({}),
-  ]) as Schema<T>,
+  ]),
 ])
+
+interface Config {
+  dynamic: Enable<dynamic.Config>
+  url: Enable<url.Config>
+  quester: Quester.Config
+}
 
 export const Config: Schema<Config> = Schema.object({
   dynamic: enable(dynamic.Config).description('动态监听 (使用 dynamic 指令管理监听对象)'),

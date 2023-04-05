@@ -111,12 +111,14 @@ export interface Config {
   interval: number
   image: boolean
   live: boolean
+  httpsAgent: any
 }
 
 export const Config: Schema<Config> = Schema.object({
   interval: Schema.number().description('请求之间的间隔 (秒)。').default(10),
   image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
   live: Schema.boolean().description('是否监控开始直播的动态').default(true),
+  httpsAgent: Schema.any().hidden(),
 })
 
 export const logger = new Logger('bilibili/dynamic')
@@ -139,7 +141,7 @@ export async function apply(ctx: Context, config: Config) {
       }
       let items: BilibiliDynamicItem[]
       try {
-        items = await request(uid, ctx.http)
+        items = await request(uid, ctx.http, config)
       } catch (e) {
         return '请求失败，请检查 UID 是否正确或重试。'
       }
@@ -198,7 +200,7 @@ export async function apply(ctx: Context, config: Config) {
         if (notifications.length === 0) continue
         const time = notifications[0][1].lastUpdated
         try {
-          const items = await request(uid, ctx.http)
+          const items = await request(uid, ctx.http, config)
           // setup time on every start up
           if (!notifications[0][1].lastUpdated) {
             notifications.forEach(([, notification]) =>
@@ -239,11 +241,12 @@ function checkDynamic({ session }: Argv<never, 'bilibili'>) {
   session.channel.bilibili.dynamic ||= []
 }
 
-async function request(uid: string, http: Quester): Promise<BilibiliDynamicItem[]> {
+async function request(uid: string, http: Quester, config: Config): Promise<BilibiliDynamicItem[]> {
   const res = await http.get('https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=' + uid, {
     headers: {
       'Referer': `https://space.bilibili.com/${uid}/dynamic`,
     },
+    httpsAgent: config.httpsAgent,
   })
   if (res.code !== 0) throw new Error(`Failed to get dynamics. ${res}`)
   return (res.data.items as BilibiliDynamicItem[])
@@ -264,9 +267,16 @@ async function renderImage(ctx: Context, item: BilibiliDynamicItem): Promise<str
       while (popover = document.querySelector('.van-popover')) popover.remove()
     })
     const element = await page.$('.bili-dyn-item')
-    return `${item.modules.module_author.name} 发布了动态:\n`
-      + segment.image(await element.screenshot())
-      + `\nhttps://t.bilibili.com/${item.id_str}`
+    if (item.type === 'DYNAMIC_TYPE_LIVE_RCMD') {
+      const info: LivePlayInfo = JSON.parse(item.modules.module_dynamic.major.live_rcmd.content).live_play_info
+      return `${item.modules.module_author.name} 开始直播: ${info.title}\n`
+        + segment.image(await element.screenshot())
+        + `\n${info.link}`
+    } else {
+      return `${item.modules.module_author.name} 发布了动态:\n`
+        + segment.image(await element.screenshot())
+        + `\nhttps://t.bilibili.com/${item.id_str}`
+    }
   } catch (e) {
     throw e
   } finally {
@@ -279,21 +289,21 @@ function renderText(item: BilibiliDynamicItem): string {
   let result: string
   if (item.type === 'DYNAMIC_TYPE_AV') {
     const dynamic = item.modules.module_dynamic
-    result = `${author.name} 发布了视频: ${dynamic.major.archive.title}\n<image url="${dynamic.major.archive.cover}"/>`
+    result = `${author.name} 发布了视频:\n${dynamic.major.archive.title}\n<image url="${dynamic.major.archive.cover}"/>`
   } else if (item.type === 'DYNAMIC_TYPE_DRAW') {
     const dynamic = item.modules.module_dynamic
-    result = `${author.name} 发布了动态: ${dynamic.desc.text}\n${dynamic.major.draw.items.map(item =>
+    result = `${author.name} 发布了动态:\n${dynamic.desc.text}\n${dynamic.major.draw.items.map(item =>
       `<image url="${item.src}"/>`).join('')}`
   } else if (item.type === 'DYNAMIC_TYPE_WORD') {
     const dynamic = item.modules.module_dynamic
-    result = `${author.name} 发布了动态: ${dynamic.desc.text}`
+    result = `${author.name} 发布了动态:\n${dynamic.desc.text}`
   } else if (item.type === 'DYNAMIC_TYPE_FORWARD') {
     const dynamic = item.modules.module_dynamic
-    result = `${author.name} 转发动态: ${dynamic.desc.text}\n${renderText(item.orig)}`
+    result = `${author.name} 转发动态:\n${dynamic.desc.text}\n${renderText(item.orig)}`
   } else if (item.type === 'DYNAMIC_TYPE_LIVE_RCMD') {
     const dynamic = item.modules.module_dynamic
     const info: LivePlayInfo = JSON.parse(dynamic.major.live_rcmd.content).live_play_info
-    result = `${author.name} 开始直播: ${info.title}`
+    result = `${author.name} 开始直播:\n${info.title}`
     if (info.cover) result += `\n${segment.image(info.cover)}`
   } else {
     result = `${author.name} 发布了未知类型的动态: ${item['type']}`
