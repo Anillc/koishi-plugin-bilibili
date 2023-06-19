@@ -245,6 +245,8 @@ async function request(uid: string, http: Quester, config: Config): Promise<Bili
   const res = await http.get('https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=' + uid, {
     headers: {
       'Referer': `https://space.bilibili.com/${uid}/dynamic`,
+      // https://github.com/SocialSisterYi/bilibili-API-collect/issues/686
+      'Cookie': `DedeUserID=${uid}`
     },
     httpsAgent: config.httpsAgent,
   })
