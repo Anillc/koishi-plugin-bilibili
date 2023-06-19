@@ -9,7 +9,6 @@
     "skipLibCheck": true,
     "declaration": true,
     "esModuleInterop": true,
-    "emitDeclarationOnly": true,
     "composite": true,
   },
   "include": ["."],
