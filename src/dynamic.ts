@@ -143,6 +143,7 @@ export async function apply(ctx: Context, config: Config) {
       try {
         items = await request(uid, ctx.http, config)
       } catch (e) {
+        logger.error(e)
         return '请求失败，请检查 UID 是否正确或重试。'
       }
       const notification: DynamicNotifiction = {
