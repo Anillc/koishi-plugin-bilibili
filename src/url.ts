@@ -18,6 +18,7 @@ const logger = new Logger('bilibili/url')
 
 export function apply(ctx: Context, config: Config) {
   ctx.middleware(async ({ content }, next) => {
+    if (content.includes('<image url=')) return next()
     try {
       const avid = await testVideo(content, ctx.http)
       if (avid) return next(async () => {
