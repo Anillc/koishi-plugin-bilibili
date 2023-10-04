@@ -17,12 +17,15 @@ export const Config: Schema<Config> = Schema.object({
 const logger = new Logger('bilibili/url')
 
 export function apply(ctx: Context, config: Config) {
-  ctx.middleware(async ({ content }, next) => {
+  ctx.middleware(async ({ elements }, next) => {
     try {
-      const avid = await testVideo(content, ctx.http)
-      if (avid) return next(async () => {
-        return await render(avid, ctx.http, config.lengthLimit)
-      })
+      for (const element of elements) {
+        if (element.type !== 'text') continue
+        const avid = await testVideo(element.attrs.content, ctx.http)
+        if (avid) return next(async () => {
+          return await render(avid, ctx.http, config.lengthLimit)
+        })
+      }
     } catch (e) {
       logger.error('请求时发生异常: ', e)
     }
