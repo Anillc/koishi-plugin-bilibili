@@ -16,90 +16,58 @@ interface DynamicNotifiction {
   lastUpdated?: number
 }
 
-type BilibiliDynamicItem = {
-  type: 'DYNAMIC_TYPE_AV'
-  id_str: string
-  modules: {
-    module_author: {
-      name: string
-      pub_ts: number
-    }
-    module_dynamic: {
-      major: {
-        archive: {
-          title: string
-          cover: string
-        }
+type DynamicContent = {
+  DYNAMIC_TYPE_AV: {
+    major: {
+      archive: {
+        title: string
+        cover: string
       }
     }
   }
-} | {
-  type: 'DYNAMIC_TYPE_DRAW'
-  id_str: string
-  modules: {
-    module_author: {
-      name: string
-      pub_ts: number
+  DYNAMIC_TYPE_DRAW: {
+    desc: {
+      text: string
     }
-    module_dynamic: {
-      desc: {
-        text: string
-      }
-      major: {
-        draw: {
-          items: {
-            src: string
-          }[]
-        }
+    major: {
+      draw: {
+        items: {
+          src: string
+        }[]
       }
     }
   }
-} | {
-  type: 'DYNAMIC_TYPE_WORD'
-  id_str: string
-  modules: {
-    module_author: {
-      name: string
-      pub_ts: number
-    }
-    module_dynamic: {
-      desc: {
-        text: string
-      }
+  DYNAMIC_TYPE_WORD: {
+    desc: {
+      text: string
     }
   }
-} | {
-  type: 'DYNAMIC_TYPE_FORWARD'
-  id_str: string
-  orig: BilibiliDynamicItem
-  modules: {
-    module_author: {
-      name: string
-      pub_ts: number
-    }
-    module_dynamic: {
-      desc: {
-        text: string
-      }
+  DYNAMIC_TYPE_FORWARD: {
+    desc: {
+      text: string
     }
   }
-} | {
-  type: 'DYNAMIC_TYPE_LIVE_RCMD'
-  id_str: string
-  modules: {
-    module_author: {
-      name: string
-      pub_ts: number
-    }
-    module_dynamic: {
-      major: {
-        live_rcmd: {
-          content: string
-        }
+  DYNAMIC_TYPE_LIVE_RCMD: {
+    major: {
+      live_rcmd: {
+        content: string
       }
     }
   }
 }
+
+type BilibiliDynamicItem<T extends keyof DynamicContent = keyof DynamicContent> = T extends infer P ? {
+  id_str: string
+  type: P
+  orig: T extends 'DYNAMIC_TYPE_LIVE_RCMD' ? BilibiliDynamicItem : never
+  modules: {
+    module_author: {
+      name: string
+      pub_ts: number
+    }
+    module_dynamic: DynamicContent[T]
+  }
+} : never
 
 export interface LivePlayInfo {
   title: string
