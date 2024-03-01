@@ -112,6 +112,7 @@ export interface Config {
   image: boolean
   live: boolean
   httpsAgent: any
+  cookie: string
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -119,6 +120,7 @@ export const Config: Schema<Config> = Schema.object({
   image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
   live: Schema.boolean().description('是否监控开始直播的动态').default(true),
   httpsAgent: Schema.any().hidden(),
+  cookie: Schema.string().description('已登陆用户的cookie。在添加动态监听失败时填写。').role('textarea')
 })
 
 export const logger = new Logger('bilibili/dynamic')
@@ -246,7 +248,7 @@ async function request(uid: string, http: Quester, config: Config): Promise<Bili
     headers: {
       'Referer': `https://space.bilibili.com/${uid}/dynamic`,
       // https://github.com/SocialSisterYi/bilibili-API-collect/issues/686
-      'Cookie': `DedeUserID=${uid}`
+      'Cookie': config.cookie || `DedeUserID=${uid}`
     },
     httpsAgent: config.httpsAgent,
   })
