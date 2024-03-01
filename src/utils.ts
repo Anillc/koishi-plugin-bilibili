@@ -9,5 +9,5 @@ export function toAvid(bvid: string) {
   for (let i = 0; i < 6; i++) {
     r += tr[bvid[s[i]]] * Math.pow(58, i)
   }
-  return (r - 8728348608) ^ 177451812
+  return (r - 7654606784) ^ 1251193636
 }
