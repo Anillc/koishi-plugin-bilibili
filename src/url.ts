@@ -22,9 +22,11 @@ export function apply(ctx: Context, config: Config) {
       for (const element of elements) {
         if (element.type !== 'text') continue
         const avid = await testVideo(element.attrs.content, ctx.http)
-        if (avid) return next(async () => {
-          return await render(avid, ctx.http, config.lengthLimit)
-        })
+        if (avid) {
+          return next(async () => {
+            return await render(avid, ctx.http, config.lengthLimit)
+          })
+        }
       }
     } catch (e) {
       logger.error('请求时发生异常: ', e)
@@ -44,7 +46,7 @@ async function testVideo(content: string, http: Quester): Promise<string> {
 }
 
 async function parseB23(value: string, http: Quester): Promise<string> {
-  const result = await http(`https://b23.tv/${value}`, {redirect: 'manual'})
+  const result = await http(`https://b23.tv/${value}`, { redirect: 'manual' })
   if (result.status !== 302) return
   return result.headers.get('location')
 }

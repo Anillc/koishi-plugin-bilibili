@@ -1,4 +1,4 @@
-import { Argv, Context, Channel, Dict, Quester, Schema, segment, Logger } from 'koishi'
+import { Argv, Channel, Context, Dict, Logger, Quester, Schema, segment } from 'koishi'
 import { } from 'koishi-plugin-puppeteer'
 import { Page } from 'puppeteer-core'
 
@@ -118,7 +118,7 @@ export const Config: Schema<Config> = Schema.object({
   interval: Schema.number().description('请求之间的间隔 (秒)。').default(10),
   image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
   live: Schema.boolean().description('是否监控开始直播的动态').default(true),
-  cookie: Schema.string().description('已登陆用户的cookie。在添加动态监听失败时填写。').role('textarea')
+  cookie: Schema.string().description('已登陆用户的cookie。在添加动态监听失败时填写。').role('textarea'),
 })
 
 export const logger = new Logger('bilibili/dynamic')
@@ -139,9 +139,8 @@ export async function apply(ctx: Context, config: Config) {
       if (session.channel.bilibili.dynamic.find(notification => notification.bilibiliId === uid)) {
         return '该用户已在监听列表中。'
       }
-      let items: BilibiliDynamicItem[]
       try {
-        items = await request(uid, ctx.http, config)
+        await request(uid, ctx.http, config)
       } catch (e) {
         return '请求失败，请检查 UID 是否正确或重试。'
       }
@@ -189,8 +188,8 @@ export async function apply(ctx: Context, config: Config) {
         .map(notification => '·' + notification.bilibiliId).join('\n')
     })
 
-  async function *listen() {
-    while(true) {
+  async function* listen() {
+    while (true) {
       const entries = Object.entries(list)
       if (entries.length === 0) {
         yield
@@ -246,7 +245,7 @@ async function request(uid: string, http: Quester, config: Config): Promise<Bili
     headers: {
       'Referer': `https://space.bilibili.com/${uid}/dynamic`,
       // https://github.com/SocialSisterYi/bilibili-API-collect/issues/686
-      'Cookie': config.cookie || `DedeUserID=${uid}`
+      'Cookie': config.cookie || `DedeUserID=${uid}`,
     },
   })
   if (res.code !== 0) throw new Error(`Failed to get dynamics. ${res}`)
@@ -278,8 +277,6 @@ async function renderImage(ctx: Context, item: BilibiliDynamicItem): Promise<str
         + segment.image(await element.screenshot())
         + `\nhttps://t.bilibili.com/${item.id_str}`
     }
-  } catch (e) {
-    throw e
   } finally {
     page?.close()
   }
