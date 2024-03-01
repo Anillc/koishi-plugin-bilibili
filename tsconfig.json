@@ -2,14 +2,22 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib",
-    "target": "es2020",
+    "target": "es2022",
     "module": "commonjs",
-    "moduleResolution": "node",
+    "declaration": true,
+    "composite": true,
     "incremental": true,
     "skipLibCheck": true,
-    "declaration": true,
     "esModuleInterop": true,
-    "composite": true,
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@satorijs/element",
+    "types": [
+      "node",
+      "yml-register/types"
+    ]
   },
-  "include": ["."],
+  "include": [
+    "src"
+  ]
 }
