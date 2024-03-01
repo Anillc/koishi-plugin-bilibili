@@ -75,17 +75,30 @@ export interface LivePlayInfo {
   link: string
 }
 
+const DynamicTypes: (keyof DynamicContent)[] = [
+  'DYNAMIC_TYPE_AV',
+  'DYNAMIC_TYPE_DRAW',
+  'DYNAMIC_TYPE_WORD',
+  'DYNAMIC_TYPE_FORWARD',
+  'DYNAMIC_TYPE_LIVE_RCMD',
+]
 export interface Config {
   interval: number
   image: boolean
-  live: boolean
+  allow: (keyof DynamicContent)[]
   cookie: string
 }
 
 export const Config: Schema<Config> = Schema.object({
   interval: Schema.number().description('请求之间的间隔 (秒)。').default(10),
   image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
-  live: Schema.boolean().description('是否监控开始直播的动态').default(true),
+  allow: Schema.array(Schema.union([
+    Schema.const('DYNAMIC_TYPE_AV').description('视频'),
+    Schema.const('DYNAMIC_TYPE_DRAW').description('相簿'),
+    Schema.const('DYNAMIC_TYPE_WORD').description('文字'),
+    Schema.const('DYNAMIC_TYPE_FORWARD').description('转发'),
+    Schema.const('DYNAMIC_TYPE_LIVE_RCMD').description('开播'),
+  ])).default(DynamicTypes).role('checkbox').description('选择发送哪些类型的动态'),
   cookie: Schema.string().description('已登陆用户的cookie。在添加动态监听失败时填写。').role('textarea'),
 })
 
@@ -174,8 +187,8 @@ export async function apply(ctx: Context, config: Config) {
               notification.lastUpdated = items[0]?.modules.module_author.pub_ts || Math.ceil(+new Date() / 1000))
             continue
           }
-          let neo = items.filter(item => item.modules.module_author.pub_ts > time)
-          if (!config.live) neo = neo.filter(item => item.type !== 'DYNAMIC_TYPE_LIVE_RCMD')
+          const neo = items.filter(item => item.modules.module_author.pub_ts > time)
+            .filter(item => config.allow.some(type => item.type === type))
           if (neo.length !== 0) {
             let rendered: string[]
             if (ctx.puppeteer && config.image) {
