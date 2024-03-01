@@ -44,11 +44,9 @@ async function testVideo(content: string, http: Quester): Promise<string> {
 }
 
 async function parseB23(value: string, http: Quester): Promise<string> {
-  const result = await http.axios(`https://b23.tv/${value}`, {
-    maxRedirects: 0,
-    validateStatus: status => status === 302,
-  })
-  return result.headers['location']
+  const result = await http(`https://b23.tv/${value}`, {redirect: 'manual'})
+  if (result.status !== 302) return
+  return result.headers.get('location')
 }
 
 async function render(avid: string, http: Quester, lengthLimit: number) {

@@ -111,7 +111,6 @@ export interface Config {
   interval: number
   image: boolean
   live: boolean
-  httpsAgent: any
   cookie: string
 }
 
@@ -119,7 +118,6 @@ export const Config: Schema<Config> = Schema.object({
   interval: Schema.number().description('请求之间的间隔 (秒)。').default(10),
   image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
   live: Schema.boolean().description('是否监控开始直播的动态').default(true),
-  httpsAgent: Schema.any().hidden(),
   cookie: Schema.string().description('已登陆用户的cookie。在添加动态监听失败时填写。').role('textarea')
 })
 
@@ -250,7 +248,6 @@ async function request(uid: string, http: Quester, config: Config): Promise<Bili
       // https://github.com/SocialSisterYi/bilibili-API-collect/issues/686
       'Cookie': config.cookie || `DedeUserID=${uid}`
     },
-    httpsAgent: config.httpsAgent,
   })
   if (res.code !== 0) throw new Error(`Failed to get dynamics. ${res}`)
   return (res.data.items as BilibiliDynamicItem[])

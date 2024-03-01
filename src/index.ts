@@ -36,7 +36,10 @@ export const Config: Schema<Config> = Schema.object({
 
 export const name = 'bilibili'
 
-export const using = ['database']
+export const inject = {
+  required: ['database'],
+  optional: ['puppeteer'],
+}
 
 export function apply(context: Context, config: Config) {
   context.model.extend('channel', {
