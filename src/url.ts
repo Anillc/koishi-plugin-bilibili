@@ -1,4 +1,4 @@
-import { Context, Logger, Quester, Schema } from 'koishi'
+import { Context, Element, Schema } from 'koishi'
 import { toAvid } from './utils'
 
 // av -> 6 avid -> 8 bv -> 9
@@ -14,55 +14,54 @@ export const Config: Schema<Config> = Schema.object({
   lengthLimit: Schema.number().description('简介的最大长度，设置为 0 则不限制。').default(100),
 })
 
-const logger = new Logger('bilibili/url')
-
 export function apply(ctx: Context, config: Config) {
+  const logger = ctx.logger('bilibili/url')
+
   ctx.middleware(async ({ elements }, next) => {
-    try {
-      for (const element of elements) {
-        if (element.type !== 'text') continue
-        const avid = await testVideo(element.attrs.content, ctx.http)
-        if (avid) {
-          return next(async () => {
-            return await render(avid, ctx.http, config.lengthLimit)
-          })
-        }
-      }
-    } catch (e) {
-      logger.error('请求时发生异常: ', e)
+    const contents = [
+      ...elements.filter(e => e.type === 'json').map(processJson),
+      ...elements.filter(e => e.type === 'text').map(e => e.attrs.content),
+    ]
+    for (const content of contents) {
+      const avid = await ensureAvid(content)
+      if (avid) return next(async () => await render(avid))
     }
     return next()
   })
-}
 
-async function testVideo(content: string, http: Quester): Promise<string> {
-  let match: RegExpExecArray
-  if (match = B23_REGEX.exec(content)) {
-    const url = await parseB23(match[4], http)
-    return await testVideo(url, http)
-  } else if (match = VIDEO_REGEX.exec(content)) {
-    return match[8] || toAvid(match[9]).toString()
+  async function ensureAvid(url: string) {
+    let match: RegExpExecArray
+    while (match = B23_REGEX.exec(url)) {
+      const result = await ctx.http(`https://b23.tv/${match[4]}`, { redirect: 'manual' })
+      if (result.status !== 302) return
+      url = result.headers.get('location')
+    }
+    if (match = VIDEO_REGEX.exec(url)) {
+      return match[8] || toAvid(match[9]).toString()
+    }
   }
-}
 
-async function parseB23(value: string, http: Quester): Promise<string> {
-  const result = await http(`https://b23.tv/${value}`, { redirect: 'manual' })
-  if (result.status !== 302) return
-  return result.headers.get('location')
-}
-
-async function render(avid: string, http: Quester, lengthLimit: number) {
-  const { data } = await http.get(`https://api.bilibili.com/x/web-interface/view?aid=${avid}`)
-  const up = data.staff?.map(staff => staff.name).join('/') || data.owner.name
-  let desc: string = data.desc
-  if (lengthLimit !== 0 && desc.length > lengthLimit) {
-    desc = desc.substring(0, lengthLimit) + '...'
+  function processJson(e: Element): string {
+    const data = JSON.parse(e.attrs.data)
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { detail_1, news } = data.meta
+    if (detail_1) return detail_1.qqdocurl
+    if (news) return news.jumpUrl
   }
-  return `<image url="${data.pic}"/>
+
+  async function render(avid: string) {
+    const { data } = await ctx.http.get(`https://api.bilibili.com/x/web-interface/view?aid=${avid}`)
+    const up = data.staff?.map(staff => staff.name).join('/') || data.owner.name
+    let desc: string = data.desc
+    if (config.lengthLimit !== 0 && desc.length > config.lengthLimit) {
+      desc = desc.substring(0, config.lengthLimit) + '...'
+    }
+    return `<image url="${data.pic}"/>
 标题: ${data.title}
 UP 主: ${up}
 点赞: ${data.stat.like} | 硬币: ${data.stat.coin} | 收藏: ${data.stat.favorite}
 播放: ${data.stat.view} | 弹幕: ${data.stat.danmaku} | 评论: ${data.stat.reply}
 简介: ${desc}
 https://bilibili.com/video/av${avid}`
+  }
 }
