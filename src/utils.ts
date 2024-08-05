@@ -1,13 +1,31 @@
-import { Dict } from 'koishi'
+// from https://socialsisteryi.github.io/bilibili-API-collect/docs/misc/bvid_desc.html#javascript-typescript
 
-const table = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
-const tr = table.split('').reduce((acc, x, i) => ({ ...acc, [x]: i }), {} as Dict<number>)
-const s = [11, 10, 3, 8, 4, 6]
+const XOR_CODE = 23442827791579n
+const MASK_CODE = 2251799813685247n
+const MAX_AID = 1n << 51n
+const BASE = 58n
 
-export function toAvid(bvid: string) {
-  let r = 0
-  for (let i = 0; i < 6; i++) {
-    r += tr[bvid[s[i]]] * Math.pow(58, i)
+const table = 'FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf' as const
+
+export function av2bv(aid: number) {
+  const bytes = ['B', 'V', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0']
+  let bvIndex = bytes.length - 1
+  let tmp = (MAX_AID | BigInt(aid)) ^ XOR_CODE
+  while (tmp > 0) {
+    bytes[bvIndex] = table[Number(tmp % BigInt(BASE))]
+    tmp = tmp / BASE
+    bvIndex -= 1
   }
-  return (r - 7654606784) ^ 1251193636
+  [bytes[3], bytes[9]] = [bytes[9], bytes[3]];
+  [bytes[4], bytes[7]] = [bytes[7], bytes[4]]
+  return bytes.join('') as `BV1${string}`
+}
+
+export function bv2av(bvid: string) {
+  const bvidArr = Array.from<string>(bvid)
+  ;[bvidArr[3], bvidArr[9]] = [bvidArr[9], bvidArr[3]]
+  ;[bvidArr[4], bvidArr[7]] = [bvidArr[7], bvidArr[4]]
+  bvidArr.splice(0, 3)
+  const tmp = bvidArr.reduce((pre, bvidChar) => pre * BASE + BigInt(table.indexOf(bvidChar)), 0n)
+  return Number((tmp & MASK_CODE) ^ XOR_CODE)
 }

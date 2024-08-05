@@ -1,5 +1,5 @@
 import { Context, h, Schema } from 'koishi'
-import { toAvid } from './utils'
+import { bv2av } from './utils'
 
 // av -> 6 avid -> 8 bv -> 9
 const VIDEO_REGEX = /(((https?:\/\/)?(www.|m.)?bilibili.com\/(video\/)?)?((av|AV)(\d+)|((BV|bv)1[1-9A-NP-Za-km-z]{9})))/
@@ -77,7 +77,7 @@ export function apply(ctx: Context, config: Config) {
       url = result.headers.get('location')
     }
     if (match = VIDEO_REGEX.exec(url)) {
-      return match[8] || toAvid(match[9]).toString()
+      return match[8] || bv2av(match[9]).toString()
     }
   }
 
