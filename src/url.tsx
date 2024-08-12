@@ -64,7 +64,7 @@ export function apply(ctx: Context, config: Config) {
     ]
     for (const content of contents) {
       const avid = await ensureAvid(content)
-      if (avid) return next(async () => await render(avid))
+      if (avid) return render(avid)
     }
     return next()
   })
