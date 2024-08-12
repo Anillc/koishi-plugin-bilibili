@@ -1,6 +1,6 @@
 {
   "name": "koishi-plugin-bilibili",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "bilibili plugin for koishi",
   "license": "MIT",
   "repository": "https://github.com/Anillc/koishi-plugin-bilibili.git",
@@ -12,10 +12,9 @@
     }
   ],
   "main": "lib/index.js",
-  "typings": "src/index.ts",
+  "typings": "lib/index.d.ts",
   "files": [
-    "lib",
-    "src"
+    "lib"
   ],
   "koishi": {
     "service": {
@@ -28,7 +27,10 @@
     }
   },
   "peerDependencies": {
-    "koishi": "^4.17.10",
+    "koishi": "^4.17.11",
     "koishi-plugin-puppeteer": "^3.8.4"
+  },
+  "dependencies": {
+    "@satorijs/element": "^3.1.7"
   }
 }
