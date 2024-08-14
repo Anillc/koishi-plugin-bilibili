@@ -3,6 +3,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "lib",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@satorijs/element",
   },
   "include": [
     "src"
