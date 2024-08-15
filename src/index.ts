@@ -2,20 +2,12 @@ import { Context, Quester, Schema } from 'koishi'
 import * as dynamic from './dynamic'
 import * as url from './url'
 
-export interface BilibiliChannel {}
-
-declare module 'koishi' {
-    interface Channel {
-      bilibili: BilibiliChannel
-    }
-}
-
 type Enable<T> = { enable: true } & T | { enable?: false }
-const enable = <T>(schema: Schema<T>): Schema<Enable<T>> => Schema.intersect([
-  Schema.object({ enable: Schema.boolean().default(false).description('是否开启功能。') }),
+const enable = <T>(schema: Schema<T>, description: string): Schema<Enable<T>> => Schema.intersect([
+  Schema.object({ enable: Schema.boolean().default(false).description('是否开启功能。') }).description(description),
   Schema.union([
     Schema.object({
-      enable: Schema.const(true),
+      enable: Schema.const(true).required(),
       ...schema.dict,
     }),
     Schema.object({}),
@@ -29,8 +21,8 @@ interface Config {
 }
 
 export const Config: Schema<Config> = Schema.object({
-  dynamic: enable(dynamic.Config).description('动态监听 (使用 dynamic 指令管理监听对象)'),
-  url: enable(url.Config).description('解析 B 站视频链接'),
+  dynamic: enable(dynamic.Config, '动态监听 (使用 dynamic 指令管理监听对象)'),
+  url: enable(url.Config, '解析 B 站视频链接'),
   quester: Quester.Config,
 })
 

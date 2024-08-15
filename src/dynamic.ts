@@ -1,11 +1,14 @@
-import { Argv, Channel, Context, Dict, Logger, Quester, Schema, segment } from 'koishi'
+import { Argv, Channel, Context, Dict, h, Logger, Quester, Schema } from 'koishi'
 import { } from 'koishi-plugin-puppeteer'
 import { Page } from 'puppeteer-core'
 
-declare module '.' {
-  interface BilibiliChannel {
-    dynamic?: DynamicNotifiction[]
+declare module 'koishi' {
+  interface Channel {
+    bilibili: BilibiliChannel
   }
+}
+interface BilibiliChannel {
+  dynamic?: DynamicNotifiction[]
 }
 
 interface DynamicNotifiction {
@@ -251,11 +254,11 @@ async function renderImage(ctx: Context, item: BilibiliDynamicItem): Promise<str
     if (item.type === 'DYNAMIC_TYPE_LIVE_RCMD') {
       const info: LivePlayInfo = JSON.parse(item.modules.module_dynamic.major.live_rcmd.content).live_play_info
       return `${item.modules.module_author.name} 开始直播: ${info.title}\n`
-        + segment.image(await element.screenshot())
+        + h.image(await element.screenshot(), 'image/png')
         + `\n${info.link}`
     } else {
       return `${item.modules.module_author.name} 发布了动态:\n`
-        + segment.image(await element.screenshot())
+        + h.image(await element.screenshot(), 'image/png')
         + `\nhttps://t.bilibili.com/${item.id_str}`
     }
   } finally {
@@ -283,7 +286,7 @@ function renderText(item: BilibiliDynamicItem): string {
     const dynamic = item.modules.module_dynamic
     const info: LivePlayInfo = JSON.parse(dynamic.major.live_rcmd.content).live_play_info
     result = `${author.name} 开始直播:\n${info.title}`
-    if (info.cover) result += `\n${segment.image(info.cover)}`
+    if (info.cover) result += `\n${h.image(info.cover)}`
   } else {
     result = `${author.name} 发布了未知类型的动态: ${item['type']}`
   }
