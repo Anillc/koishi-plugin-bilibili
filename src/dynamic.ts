@@ -1,14 +1,13 @@
-import { Argv, Channel, Context, Dict, h, Logger, Quester, Schema } from 'koishi'
-import { } from 'koishi-plugin-puppeteer'
-import { Page } from 'puppeteer-core'
+import { Argv, Channel, Context, Dict, h, Logger, Schema } from 'koishi'
+import type { } from 'koishi-plugin-puppeteer'
+import type { Page } from 'puppeteer-core'
 
 declare module 'koishi' {
   interface Channel {
-    bilibili: BilibiliChannel
+    bilibili: {
+      dynamic?: DynamicNotifiction[]
+    }
   }
-}
-interface BilibiliChannel {
-  dynamic?: DynamicNotifiction[]
 }
 
 interface DynamicNotifiction {
@@ -89,7 +88,8 @@ export interface Config {
   interval: number
   image: boolean
   allow: (keyof DynamicContent)[]
-  cookie: string
+  cookie?: string
+  userAgent?: string
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -102,7 +102,6 @@ export const Config: Schema<Config> = Schema.object({
     Schema.const('DYNAMIC_TYPE_FORWARD').description('转发'),
     Schema.const('DYNAMIC_TYPE_LIVE_RCMD').description('开播'),
   ])).default(DynamicTypes).role('checkbox').description('选择发送哪些类型的动态'),
-  cookie: Schema.string().description('已登陆用户的cookie。在添加动态监听失败时填写。').role('textarea'),
 })
 
 export const logger = new Logger('bilibili/dynamic')
@@ -124,7 +123,7 @@ export async function apply(ctx: Context, config: Config) {
         return '该用户已在监听列表中。'
       }
       try {
-        await request(uid, ctx.http, config)
+        await request(uid, ctx, config)
       } catch (e) {
         return '请求失败，请检查 UID 是否正确或重试。'
       }
@@ -133,7 +132,7 @@ export async function apply(ctx: Context, config: Config) {
         bilibiliId: uid,
       }
       session.channel.bilibili.dynamic.push(notification)
-      ;(list[uid] ||= []).push([{
+      ; (list[uid] ||= []).push([{
         id: session.channel.id,
         guildId: session.channel.guildId,
         platform: session.platform,
@@ -183,7 +182,7 @@ export async function apply(ctx: Context, config: Config) {
         if (notifications.length === 0) continue
         const time = notifications[0][1].lastUpdated
         try {
-          const items = await request(uid, ctx.http, config)
+          const items = await request(uid, ctx, config)
           // setup time on every start up
           if (!notifications[0][1].lastUpdated) {
             notifications.forEach(([, notification]) =>
@@ -224,15 +223,19 @@ function checkDynamic({ session }: Argv<never, 'bilibili'>) {
   session.channel.bilibili.dynamic ||= []
 }
 
-async function request(uid: string, http: Quester, config: Config): Promise<BilibiliDynamicItem[]> {
-  const res = await http.get('https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=' + uid, {
-    headers: {
-      'Referer': `https://space.bilibili.com/${uid}/dynamic`,
-      // https://github.com/SocialSisterYi/bilibili-API-collect/issues/686
-      'Cookie': config.cookie || `DedeUserID=${uid}`,
-    },
-  })
-  if (res.code !== 0) throw new Error(`Failed to get dynamics. ${res}`)
+async function request(uid: string, ctx: Context, config: Config): Promise<BilibiliDynamicItem[]> {
+  const headers = {
+    'User-Agent': config.userAgent,
+    'Referer': `https://space.bilibili.com/${uid}/dynamic`,
+    // https://github.com/SocialSisterYi/bilibili-API-collect/issues/686
+    'Cookie': config.cookie,
+  }
+  const res = await ctx.http.get('https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=' + uid, { headers })
+  if (res.code !== 0) {
+    logger.warn(res)
+    ctx.emit('bilibili/bad-request')
+    throw new Error('Bad request')
+  }
   return (res.data.items as BilibiliDynamicItem[])
     .sort((a, b) => b.modules.module_author.pub_ts - a.modules.module_author.pub_ts)
 }
