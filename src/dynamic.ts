@@ -1,4 +1,4 @@
-import { Argv, Channel, Context, Dict, h, Logger, Schema } from 'koishi'
+import { Argv, Channel, Context, Dict, h, Logger, z } from 'koishi'
 import type { } from 'koishi-plugin-puppeteer'
 import type { Page } from 'puppeteer-core'
 
@@ -92,15 +92,15 @@ export interface Config {
   userAgent?: string
 }
 
-export const Config: Schema<Config> = Schema.object({
-  interval: Schema.number().description('请求之间的间隔 (秒)。').default(10),
-  image: Schema.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
-  allow: Schema.array(Schema.union([
-    Schema.const('DYNAMIC_TYPE_AV').description('视频'),
-    Schema.const('DYNAMIC_TYPE_DRAW').description('相簿'),
-    Schema.const('DYNAMIC_TYPE_WORD').description('文字'),
-    Schema.const('DYNAMIC_TYPE_FORWARD').description('转发'),
-    Schema.const('DYNAMIC_TYPE_LIVE_RCMD').description('开播'),
+export const Config: z<Config> = z.object({
+  interval: z.number().description('请求之间的间隔 (秒)。').default(10),
+  image: z.boolean().description('是否渲染为图片 (该选项依赖 puppeteer 插件)。').default(true),
+  allow: z.array(z.union([
+    z.const('DYNAMIC_TYPE_AV').description('视频'),
+    z.const('DYNAMIC_TYPE_DRAW').description('相簿'),
+    z.const('DYNAMIC_TYPE_WORD').description('文字'),
+    z.const('DYNAMIC_TYPE_FORWARD').description('转发'),
+    z.const('DYNAMIC_TYPE_LIVE_RCMD').description('开播'),
   ])).default(DynamicTypes).role('checkbox').description('选择发送哪些类型的动态'),
 })
 
